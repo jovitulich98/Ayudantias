@@ -1,0 +1,126 @@
+---
+title: "Ayudantía 8"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Instalar librerias
+```{r}
+
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(mclust)
+```
+
+
+##Se lee la base de datos
+```{r cars}
+library(readr)
+Spotify <- read_csv("Spotify.csv")
+```
+
+## Omitir datos N/A
+```{r pressure, echo=FALSE}
+Spotify = na.omit(Spotify)
+dim(Spotify)
+```
+
+# Veificamos tipos de datos
+```{r}
+str(Spotify)
+```
+
+## Creamos un sampleo de datos
+# De esta manera se demora menos en correr el codigo
+
+```{r}
+set.seed(369)
+sampleIndex <- sample(1:nrow(Spotify),8000, replace = F)
+Spotify <- Spotify[sampleIndex,]
+dim(Spotify)
+```
+
+## Separar datos
+```{r}
+Spotify_char<- c("artist_name", "track_name", "album_name")
+Spotify_num <- c("danceability", "energy", "key", "loudness", "mode", "speechiness", "acousticness", "instrumentalness", "liveness", "valence", "tempo", "duration_ms")
+
+
+Spotifynum <- Spotify %>% 
+  select(Spotify_num)
+Spotifychar <- Spotify %>% 
+  select(Spotify_char)
+
+```
+## Escalar datos numericos
+```{r}
+spotifysca = scale(Spotifynum) %>% as_tibble()
+
+```
+## DBScan
+# Despues de probar distintos parametros se escogieron los siguientes ya que la cantidad de puntos de ruido era relativamente aceptable y la cantidad de canciones en cada cluster no era tan grande, excepto en los cluster 1 y 2 que tienen la mayor cantidad de clusters
+```{r}
+library(dbscan)
+
+set.seed(369)
+
+model = dbscan(spotifysca, eps = 2, minPts = 8)
+
+model
+
+```
+## Grafico Mode vs duration_ms
+# Podemos identificar cierta tendencia donde mientras mas alta la duración de la cancion o pertenece a un punto de ruido o pertenece al cluster 8. Tambien dadas las leves diferencias de color podemos identificar que en cuanto al mode igual se generaron clusters y se dividieron en cto eso.
+```{r}
+ggplot(spotifysca, aes(duration_ms, mode, color = factor(model$cluster), size = duration_ms)) + 
+  geom_point(alpha = 0.3) 
+```
+## Fuzzy C-Means
+```{r}
+library(e1071)
+
+set.seed(369)
+
+modelo_c_means <- cmeans(spotifysca,  7, m=2) 
+
+modelo_c_means$membership %>% head()
+```
+
+## Plot duracion vs speechiness
+# En este gráfico se puede notar mejor la tendencia de cada cluster pero aun asi no se ven grupos totalmente definidos
+```{r}
+ggplot(spotifysca, aes(duration_ms, speechiness, color = factor(modelo_c_means$cluster), size = duration_ms)) + 
+  geom_point(alpha = 0.3) 
+```
+## FPC
+# Indice bajo, por lo que existe alta variabilidad en los clusters. No es lo ideal. Deberian tener una tendencia definida
+```{r}
+matriz <- modelo_c_means$membership%*%t(modelo_c_means$membership) # producto matricial
+(FPC <- sum(matriz*diag(nrow(matriz)))/nrow(matriz))
+```
+
+```{r}
+library(mclust)
+
+set.seed(369)
+
+model_gmm = Mclust(spotifysca)
+
+model_gmm 
+```
+## Plot speechiness vs duration
+```{r}
+ggplot(spotifysca) + 
+  aes(x=duration_ms, y=speechiness, color=factor(model_gmm$classification)) + 
+  geom_point(alpha=1)
+```
+
+```{r}
+plot(model_gmm, what = "BIC")
+```
+
+
+
