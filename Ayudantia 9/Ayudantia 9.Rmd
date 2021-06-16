@@ -1,0 +1,233 @@
+---
+title: "Ayudantia 9"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Ayudantia 9 Regresion Lineal y Regresion Logistica
+
+## Cargar Librerias 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(GGally)
+library(regclass)
+library(pROC)
+library(rsample)
+```
+
+## Cargar Datos
+
+```{r}
+ library(readr)
+ toyota <- read_csv("C:/Users/josev/Desktop/Ayudantias/Ayudantia 9/toyota.csv")
+
+```
+## Regresion Lineal
+
+
+# Simple (Precio Auto)    
+```{r}
+summary(toyota)
+
+toyota %>% head()
+```
+
+Este dataset contiene informacion sobre el modelo del auto, año, precio, transmision, kilometraje, mpg (millas por galon), tipo de combustible, impuesto de circulacion, y tamaño del motor. (La data ya esta limpiada en cuanto a datos duplicados y columnas relevantes).
+
+En este analisis lo que buscaremos es predecir el precio al que podriamos vender mi auto en caso de tener un toyora en UK.
+
+Para esto transformamos las variables del modelo, transmision y tipo de combustible, a factores para trabajar con dichos valores como "etiquetas"
+```{r}
+toyota$model <- as.factor(toyota$model)
+toyota$transmission <- as.factor(toyota$transmission)
+toyota$fuelType <- as.factor(toyota$fuelType)
+
+summary(toyota)
+```
+Podemos ver que un valor en el tamaño del motor de 0 no tiene mucho sentido por lo que revisaremos cuantas observaciones presentan este este valor, y en caso de haber datos con valor 0 los eliminamos de nuestro dataset
+Corroboramos la existencia de valores na y nulos para ver si es necesario hacer esa limpieza.
+```{r}
+toyota %>% filter(engineSize == 0) %>% nrow()
+
+toyota <- toyota %>%  filter(engineSize != 0)
+
+summary(toyota)
+
+sum(is.na(toyota))
+sum(is.null(toyota))
+
+```
+
+Una vez ya listo nuestro datos, realizamos una visualizacion de nuestro datos numericos, para ver la correlacion que pueda existir entre las variables y la distribucion de los datos. 
+
+Podemos observar como las variables del tamaño del motor y el año del auto tienen una correlación importante y positiva con respecto al precio. Estas podrían ser las variables que mas expliquen la distribución de éste.
+
+```{r, message=FALSE, warning=FALSE}
+toyota %>% select(year, mileage, tax, mpg, engineSize, price) %>% 
+  ggpairs(lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5)))
+```
+
+Revisamos como se distribuyen los datos que pasamos a factor en relacion al precio, para esto utilizamos los boxplot lo que tambien nos ayudara a ver si existen valores atipicos que puedan alterar nuestro modelo.
+
+Del primer gráfico podemos observar como en el caso de la variable trasmisión, la del tipo automatico tiene la media sobre el resto de los tipos de trasmisiones, encontrandonos también con varios datos atipicos, al igual que en Semi auto.
+
+Del segundo grafico se puede inferir es que el motor tipo hibrido es el que tiene la media de precios mas alto, pero los autos de precios mas elevados son de motor tipo diesel, se puede notar en los outliers, como tambien en el caso del motor tipo otros.
+
+Del útlimo grafico se puede observar que el modelo con rango de precios mas altos por lejos es el SUPRA.
+
+```{r}
+toyota %>% 
+  ggplot(aes(transmission, price)) +
+  geom_boxplot()
+
+toyota %>% 
+  ggplot(aes(fuelType, price)) +
+  geom_boxplot()
+
+toyota %>% mutate(model = reorder(model, price)) %>%
+  ggplot(aes(price, model)) +
+  geom_boxplot()
+```
+
+Graficamos las cuatro variables con mayores valores (no consideramos los tax) para ver como se distributen con el precio
+
+```{r}
+toyota %>% ggplot(aes(mileage, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+toyota %>% ggplot(aes(year, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+toyota %>% ggplot(aes(mpg, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+toyota %>% ggplot(aes(engineSize, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+toyota %>% filter(., year >= 2005) %>% ggplot(aes(year, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+```
+
+Escalamos los datos antes de ralizar el analisis de regresion
+
+```{r}
+toyota_sca <- toyota
+toyota_sca[,c(2,3,5,7,8,9)] <- scale(toyota_sca[,c(2,3,5,7,8,9)])
+
+toyota_sca %>%  head()
+```
+
+Primero veremos el caso de una regresion simple, donde solo consideraremos el kilometraje para predecir el precio de nuesto vhiculo
+
+```{r}
+reg_simp <- lm(price ~ mileage, data = toyota)
+summary(reg_simp)
+```
+
+Los resultados de la regresion nos indican que los valores de los parametros son 0.0001479 para el intercepto y -0.0901 para el coeficiente asociado a la variable superficie de terreno.
+
+Tambien se puede observar que el coeficiente de determinacion R2 es de .08901, lo que significa que el 8.9% de la varianza del precio esta explicada por el modelo lineal.
+
+Veamos que pasa ahora al considerar mas variables en nuestro modelo de regresion, para eso consideraremos el modelo, el año, su kilometraje, el tamaño del motor y las millas por galon.
+
+```{r}
+reg_mult <- lm(price ~ model + year*mileage + engineSize + mpg, data = toyota_sca)
+summary(reg_mult)
+```
+Los resultados de la regresion multiple no muesstra un coeficiente de determinacion de casi el 91%, y se puede ver que todas las variables son significativas a excepcion de algunos modelos de autos que no tienen significancia para nuestro modelo (por lo que podriamos estudiar si considerar o no esos modelos de audis para nuestro modelo) y la variable mpg que tampoco es muy significativa.
+
+Revisamos el valor del facto de inflacion de la varianza, este factor nos permite entender la colinealidad de los datos. 
+
+Un VIF por encima de 4 o una tolerancia por debajo de 0,25 indica que podría existir multicolinealidad y se requiere más investigación.
+
+```{r}
+VIF(reg_mult)
+```
+
+## Regresion Logistica (AirBnb)
+
+Para el segundo modelo usaremos un data set de distintas variables que podrian describir la calidad del vino, tales como el pH, la acidez, el azucar residual, entre otras.
+```{r}
+library(readr)
+wine <- read_csv("C:/Users/josev/Desktop/Ayudantias/Ayudantia 9/winequality-red.csv")
+
+summary(wine)
+wine %>% head()
+```
+
+```{r}
+glimpse(wine)
+
+set.seed(369)
+glm.fit <- glm(quality ~ alcohol, data = wine)
+
+summary(glm.fit)
+```
+
+```{r}
+prob <- predict(glm.fit, type ="response")
+
+wine$prob <- prob
+
+curva_roc <- roc(quality ~ prob, data = wine)
+
+plot(curva_roc)
+
+auc(curva_roc)
+```
+
+```{r}
+wine$prob <- NULL
+
+modelo_log_multi <- glm(quality ~ `fixed acidity` + `volatile acidity` + `citric acid` +
+                 `residual sugar`  + chlorides + `free sulfur dioxide` + `total sulfur dioxide`+ density + pH +
+                        sulphates + alcohol, data = wine)
+
+summary(modelo_log_multi)
+```
+
+```{r}
+prob_multi <- predict(modelo_log_multi, type = c("response"))
+
+wine$prob_multi <- prob_multi
+
+curva_roc_multi <- roc(quality ~ prob_multi, data = wine)
+
+plot(curva_roc_multi)
+
+auc(curva_roc_multi)
+```
+
+
+
+```{r}
+set.seed(369)
+
+data_split <- initial_split(wine,
+                            prop = 0.7,
+                            strata = NULL)
+
+train_data <- training(data_split) %>% as.data.frame() 
+test_data <- testing(data_split) %>%  as.data.frame()
+
+modelo_log_multi1 <- glm(quality ~ `fixed acidity` + `volatile acidity` + `citric acid` +
+                 `residual sugar`  + chlorides + `free sulfur dioxide` + `total sulfur dioxide`+ density + pH +
+                        sulphates + alcohol, data = wine)
+
+summary(modelo_log_multi1)
+```
+
+```{r}
+test_data$prob_multi <- predict(modelo_log_multi1, test_data, type = c("response"))
+auc(roc(quality ~ prob_multi, data = test_data))
+```
+
