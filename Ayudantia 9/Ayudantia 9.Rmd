@@ -1,5 +1,5 @@
 ---
-title: "Ayudantia 9"
+title: "Ayudantia 9 Josefina"
 output: github_document
 ---
 
@@ -163,7 +163,7 @@ wine <- read_csv("C:/Users/josev/Desktop/Ayudantias/Ayudantia 9/winequality-red.
 summary(wine)
 wine %>% head()
 ```
-
+Primero haremos la regresión logistica utilizando una sola variable, la cual será el alcohol del vino.
 ```{r}
 glimpse(wine)
 
@@ -172,7 +172,7 @@ glm.fit <- glm(quality ~ alcohol, data = wine)
 
 summary(glm.fit)
 ```
-
+Ahora veremos que tal le va al modelo prediciendo utilizando esta variable.
 ```{r}
 prob <- predict(glm.fit, type ="response")
 
@@ -184,7 +184,10 @@ plot(curva_roc)
 
 auc(curva_roc)
 ```
+Podemos ver un AUC (area bajo la curva ROC) de 57%, lo cual es un valor bastante bajo, no estaría prediciendo muy bien el modelo.
 
+
+Ahora probaremos con un modelo de regresión logística multivariable. Seleccioné varias variables que me parecían relevantes
 ```{r}
 wine$prob <- NULL
 
@@ -194,7 +197,7 @@ modelo_log_multi <- glm(quality ~ `fixed acidity` + `volatile acidity` + `citric
 
 summary(modelo_log_multi)
 ```
-
+Acontinuación mediremos su desempeño nuevamente viendo su curva ROC y el AUC.
 ```{r}
 prob_multi <- predict(modelo_log_multi, type = c("response"))
 
@@ -206,9 +209,9 @@ plot(curva_roc_multi)
 
 auc(curva_roc_multi)
 ```
+Ahora el modelo tiene un AUC del 75%, lo que es bastante mas alto que el anterior, pero todavia no llega a ser significativo.
 
-
-
+Probaremos con un set de entrenamiento y un set de prueba para ver que tal el desempeño del modelo.
 ```{r}
 set.seed(369)
 
@@ -230,4 +233,6 @@ summary(modelo_log_multi1)
 test_data$prob_multi <- predict(modelo_log_multi1, test_data, type = c("response"))
 auc(roc(quality ~ prob_multi, data = test_data))
 ```
+Ahora el AUC es de 60%, lo que es nuevamente, bastante bajo. 
 
+Habría que probar eliminando algunas variables que quizas no sirven para predecir la calidad del vino, quizas con la ayuda de un experto.

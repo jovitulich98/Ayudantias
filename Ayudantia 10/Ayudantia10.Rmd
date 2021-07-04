@@ -1,0 +1,80 @@
+---
+title: "Ayudantia 10 Metodo Bayesiano"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cargamos Librerias
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(e1071)
+library(caret)
+library(rstan)
+library(rstanarm)
+library(titanic)
+```
+
+```{r}
+#rstan_options(auto_write=TRUE)
+# Run on multiple cores
+#options(mc.cores = parallel::detectCores())
+```
+
+
+## Cargamos los datos con los que vamos a trabajar
+
+```{r}
+library(readr)
+credito <- read_csv("C:/Users/josev/Desktop/Ayudantias/Ayudantia 10/UCI_Credit_Card.csv")
+View(credito)
+```
+
+```{r}
+glimpse(credito)
+```
+
+## Pre Procesamiento
+Se considerarán todas las variables significativas para este modelamiento, ya estan todas en formato numerico.
+Solo se analizará si es que hay datos na.
+
+```{r}
+credito = na.omit(credito)
+dim(credito)
+
+```
+## Metodo Bayesiano
+
+```{r}
+library("e1071")
+
+CreditoLinear <- stan_glm(default.payment.next.month ~. , 
+                          data = credito, family = gaussian)
+
+model_nb <- naiveBayes(default.payment.next.month ~. , 
+                          data = credito, laplace=1)
+```
+
+## Evaluacion Metodo Bayesiano
+
+Si bien para el data set que se trabajo en esta ayudantia no es el adecuado para poder realizar la evaluacion (ya que para el conjunto de prueba del modelo no presenta la columna Survived para validar con la matriz de confusion que tan bien se clasificaron las observaciones), en forma general este modelo se evalua mediante la matriz de confusion, donde se calcula el accuracy del modelo. Otro metodo de evaluacion valido es graficar la curva ROC y calcular el AUC del modelo para saber que tan bien esta clasificando nuestro modelo.
+
+```{r}
+pred_nb <- predict(model_nb, newdata = credito)
+credito$default.payment.next.month <- as.factor(credito$default.payment.next.month)
+confusionMatrix(data=pred_nb, reference = credito$default.payment.next.month)
+```
+
+```{r}
+library(ROCR)
+
+pred_test_nb <- predict(model_nb, newdata = credito, type="raw")
+p_test_nb <- prediction(pred_test_nb[,2], credito$default.payment.next.month)
+perf_nb <- performance(p_test_nb, "tpr", "fpr")
+plot(perf_nb, colorize=T)
+performance(p_test_nb, "auc")@y.values
+```
+

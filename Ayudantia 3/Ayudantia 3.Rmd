@@ -1,0 +1,45 @@
+---
+title: "Ayudantia 3: Outliers"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Actividad Ayudantia 3
+  Replicar el analisis de outliers, debes elegir uno de los dos csv disponibles (pokemon o titanic) y realizar el analisis con algunas     de las variables numericas y realizar un pequeño analisis en relacion a los datos encontrados como outliers (en caso de que eligas     el csv del titanic solo debes evaluar las columnas AGE y FNLWGT)
+
+
+## Outliers
+   Caso 1:
+```{r cargar y revisar datos}
+library(datasets)
+library(readr)
+titanic <- read_csv("C:/Users/josev/Desktop/Ayudantias/Ayudantia 3/titanic.csv")
+
+attach(titanic)
+
+age = boxplot(AGE, horizontal = TRUE)
+
+stats_age = boxplot.stats(AGE)
+
+age
+
+stats_age
+
+```
+```{r primera limpieza}
+
+titanic1 <- AGE[AGE < 80]
+length(AGE) - length(titanic1)
+boxplot(titanic1, horizontal = TRUE)
+boxplot.stats(titanic1)
+
+```
+```{r segunda limpieza}
+titanic1 <- AGE[AGE < 76]
+length(AGE) - length(titanic1)
+boxplot(titanic1, horizontal = TRUE)
+boxplot.stats(titanic1)
+```
+
